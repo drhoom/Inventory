@@ -46,6 +46,12 @@ public final class InventoryContract {
          * Type: INTEGER
          */
         public final static String COLUMN_PRODUCT_PRICE = "price";
+
+        /**
+         * Product image.
+         * Type: BYTE ARRAY
+         */
+        public final static String COLUMN_PRODUCT_IMAGE = "image";
     }
 
 }

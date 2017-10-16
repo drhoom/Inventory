@@ -30,4 +30,6 @@
     <string name="Contact">Contact supplier</string>
     <string name="quantity">Quantity:</string>
     <string name="price">Price:</string>
+    <string name="product_Image">Product Image</string>
+    <string name="select">Select</string>
 </resources>

@@ -108,6 +108,7 @@ public class MainActivity extends AppCompatActivity implements
                 InventoryEntry._ID,
                 InventoryEntry.COLUMN_PRODUCT_NAME,
                 InventoryEntry.COLUMN_PRODUCT_PRICE,
+                InventoryEntry.COLUMN_PRODUCT_IMAGE,
                 InventoryEntry.COLUMN_PRODUCT_QUANTITY};
 
         return new CursorLoader(this,

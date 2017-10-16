@@ -2,11 +2,14 @@ package com.example.android.inventory;
 
 import android.content.Context;
 import android.database.Cursor;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
 import android.widget.CursorAdapter;
+import android.widget.ImageView;
 import android.widget.TextView;
 
 import com.example.android.inventory.data.InventoryContract.InventoryEntry;
@@ -37,12 +40,21 @@ public class InventoryCursorAdapter extends CursorAdapter {
         int nameColumnIndex = cursor.getColumnIndex(InventoryEntry.COLUMN_PRODUCT_NAME);
         int priceColumnIndex = cursor.getColumnIndex(InventoryEntry.COLUMN_PRODUCT_PRICE);
         int quantityColumnIndex = cursor.getColumnIndex(InventoryEntry.COLUMN_PRODUCT_QUANTITY);
+        int imageColumnIndex = cursor.getColumnIndex(InventoryEntry.COLUMN_PRODUCT_IMAGE);
 
 
         String productId = cursor.getString(idColumnIndex);
         String productName = cursor.getString(nameColumnIndex);
         String productPrice = cursor.getString(priceColumnIndex);
         String productQuantity = cursor.getString(quantityColumnIndex);
+        byte productImage[] = cursor.getBlob(imageColumnIndex);
+
+        if (productImage != null) {
+            Bitmap bitmapImage = BitmapFactory.decodeByteArray(productImage, 0, productImage.length);
+            holder.productImage.setImageBitmap(bitmapImage);
+        } else {
+            holder.productImage.setImageResource(R.mipmap.ic_launcher);
+        }
 
         holder.idTextView.setText(productId);
         holder.nameTextView.setText(productName);
@@ -69,12 +81,14 @@ public class InventoryCursorAdapter extends CursorAdapter {
         TextView quantityTextView;
         TextView priceTextView;
         Button saleButton;
+        ImageView productImage;
 
         public Holder(View view) {
             idTextView = view.findViewById(R.id.productId);
             nameTextView = view.findViewById(R.id.name);
             priceTextView = view.findViewById(R.id.price);
             quantityTextView = view.findViewById(R.id.quantity);
+            productImage = view.findViewById(R.id.product_image);
             saleButton = view.findViewById(R.id.saleBtn);
         }
     }

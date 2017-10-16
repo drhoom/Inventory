@@ -1,5 +1,6 @@
 package com.example.android.inventory;
 
+import android.app.Activity;
 import android.app.AlertDialog;
 import android.app.LoaderManager;
 import android.content.ContentValues;
@@ -8,8 +9,11 @@ import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.Loader;
 import android.database.Cursor;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.net.Uri;
 import android.os.Bundle;
+import android.provider.MediaStore;
 import android.support.v4.app.NavUtils;
 import android.support.v7.app.AppCompatActivity;
 import android.text.TextUtils;
@@ -19,9 +23,15 @@ import android.view.MotionEvent;
 import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
+import android.widget.ImageView;
 import android.widget.Toast;
+import android.provider.MediaStore.Images.Media;
 
 import com.example.android.inventory.data.InventoryContract.InventoryEntry;
+
+import java.io.ByteArrayOutputStream;
+import java.io.FileNotFoundException;
+import java.io.IOException;
 
 public class EditorActivity extends AppCompatActivity implements
         LoaderManager.LoaderCallbacks<Cursor> {
@@ -34,6 +44,9 @@ public class EditorActivity extends AppCompatActivity implements
     private Button mIncQuantity;
     private Button mDecQuantity;
     private Button mContact;
+    private Button mSelectImage;
+    private ImageView mProductImageView;
+    private byte mProductImage[];
     private boolean mProductHasChanged = false;
 
     private View.OnTouchListener mTouchListener = new View.OnTouchListener() {
@@ -69,6 +82,8 @@ public class EditorActivity extends AppCompatActivity implements
         mIncQuantity = (Button) findViewById(R.id.incQuantity);
         mDecQuantity = (Button) findViewById(R.id.decQuantity);
         mContact = (Button) findViewById(R.id.contact);
+        mSelectImage = (Button) findViewById(R.id.select_image);
+        mProductImageView = (ImageView) findViewById(R.id.product_image);
 
         mNameEditText.setOnTouchListener(mTouchListener);
         mPriceEditText.setOnTouchListener(mTouchListener);
@@ -78,8 +93,13 @@ public class EditorActivity extends AppCompatActivity implements
             @Override
             public void onClick(View view) {
                 mProductHasChanged = true;
-                int quantity = Integer.parseInt(mQuantityEditText.getText().toString());
-                mQuantityEditText.setText(Integer.toString(++quantity));
+                String quantityText = mQuantityEditText.getText().toString();
+                if (TextUtils.isEmpty(quantityText))
+                    mQuantityEditText.setText("1");
+                else {
+                    int quantity = Integer.parseInt(quantityText);
+                    mQuantityEditText.setText(Integer.toString(++quantity));
+                }
             }
         });
 
@@ -87,9 +107,13 @@ public class EditorActivity extends AppCompatActivity implements
             @Override
             public void onClick(View view) {
                 mProductHasChanged = true;
-                int quantity = Integer.parseInt(mQuantityEditText.getText().toString());
-                if (quantity > 0)
+                String quantityText = mQuantityEditText.getText().toString();
+                if (TextUtils.isEmpty(quantityText) || quantityText.equals("0"))
+                    mQuantityEditText.setText("0");
+                else {
+                    int quantity = Integer.parseInt(quantityText);
                     mQuantityEditText.setText(Integer.toString(--quantity));
+                }
             }
         });
 
@@ -104,24 +128,54 @@ public class EditorActivity extends AppCompatActivity implements
                 startActivity(Intent.createChooser(emailIntent, ""));
             }
         });
+
+        mSelectImage.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                Intent intent = new Intent(Intent.ACTION_PICK, Media.EXTERNAL_CONTENT_URI);
+                startActivityForResult(intent, 0);
+            }
+        });
     }
 
-    private void saveProduct() {
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        if (resultCode == Activity.RESULT_OK && data != null) {
+            Uri selectedImage = data.getData();
+            try {
+                Bitmap bitmapImage = Media.getBitmap(this.getContentResolver(), selectedImage);
+                ByteArrayOutputStream baoStream = new ByteArrayOutputStream();
+                bitmapImage.compress(Bitmap.CompressFormat.PNG, 100, baoStream);
+                mProductImage = baoStream.toByteArray();
+                mProductImageView.setImageBitmap(bitmapImage);
+            } catch (FileNotFoundException e) {
+                e.printStackTrace();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+
+    }
+
+    private boolean saveProduct() {
 
         String nameString = mNameEditText.getText().toString().trim();
         String priceString = mPriceEditText.getText().toString().trim();
         String quantityString = mQuantityEditText.getText().toString().trim();
 
         if (mCurrentInventoryUri == null &&
-                TextUtils.isEmpty(nameString) && TextUtils.isEmpty(priceString) &&
+                TextUtils.isEmpty(nameString) || TextUtils.isEmpty(priceString) ||
                 TextUtils.isEmpty(quantityString)) {
-            return;
+            Toast.makeText(this, "Please make sure to enter all information",
+                    Toast.LENGTH_SHORT).show();
+            return false;
         }
 
         ContentValues values = new ContentValues();
         values.put(InventoryEntry.COLUMN_PRODUCT_NAME, nameString);
         values.put(InventoryEntry.COLUMN_PRODUCT_PRICE, priceString);
         values.put(InventoryEntry.COLUMN_PRODUCT_QUANTITY, quantityString);
+        values.put(InventoryEntry.COLUMN_PRODUCT_IMAGE, mProductImage);
 
         if (mCurrentInventoryUri == null) {
             Uri newUri = getContentResolver().insert(InventoryEntry.CONTENT_URI, values);
@@ -144,6 +198,7 @@ public class EditorActivity extends AppCompatActivity implements
                         Toast.LENGTH_SHORT).show();
             }
         }
+        return true;
     }
 
     @Override
@@ -166,8 +221,8 @@ public class EditorActivity extends AppCompatActivity implements
     public boolean onOptionsItemSelected(MenuItem item) {
         switch (item.getItemId()) {
             case R.id.action_save:
-                saveProduct();
-                finish();
+                if (saveProduct())
+                    finish();
                 return true;
             case R.id.action_delete:
                 showDeleteConfirmationDialog();
@@ -216,6 +271,7 @@ public class EditorActivity extends AppCompatActivity implements
                 InventoryEntry._ID,
                 InventoryEntry.COLUMN_PRODUCT_NAME,
                 InventoryEntry.COLUMN_PRODUCT_PRICE,
+                InventoryEntry.COLUMN_PRODUCT_IMAGE,
                 InventoryEntry.COLUMN_PRODUCT_QUANTITY};
 
         return new CursorLoader(this,
@@ -235,12 +291,19 @@ public class EditorActivity extends AppCompatActivity implements
         if (cursor.moveToFirst()) {
             int nameColumnIndex = cursor.getColumnIndex(InventoryEntry.COLUMN_PRODUCT_NAME);
             int priceColumnIndex = cursor.getColumnIndex(InventoryEntry.COLUMN_PRODUCT_PRICE);
+            int imageColumnIndex = cursor.getColumnIndex(InventoryEntry.COLUMN_PRODUCT_IMAGE);
             int quantityColumnIndex = cursor.getColumnIndex(InventoryEntry.COLUMN_PRODUCT_QUANTITY);
 
             String name = cursor.getString(nameColumnIndex);
             int price = cursor.getInt(priceColumnIndex);
             int quantity = cursor.getInt(quantityColumnIndex);
-
+            byte productImage[] = cursor.getBlob(imageColumnIndex);
+            if (productImage != null) {
+                Bitmap bitmapImage = BitmapFactory.decodeByteArray(productImage, 0, productImage.length);
+                mProductImageView.setImageBitmap(bitmapImage);
+            } else {
+                mProductImageView.setImageResource(R.mipmap.ic_launcher);
+            }
             mNameEditText.setText(name);
             mPriceEditText.setText(Integer.toString(price));
             mQuantityEditText.setText(Integer.toString(quantity));
@@ -252,6 +315,7 @@ public class EditorActivity extends AppCompatActivity implements
         mNameEditText.setText("");
         mPriceEditText.setText("");
         mQuantityEditText.setText("");
+        mProductImageView.setImageResource(R.mipmap.ic_launcher);
     }
 
     private void showUnsavedChangesDialog(
