@@ -11,6 +11,7 @@ import android.content.Loader;
 import android.database.Cursor;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.graphics.drawable.BitmapDrawable;
 import android.net.Uri;
 import android.os.Bundle;
 import android.provider.MediaStore;
@@ -46,7 +47,6 @@ public class EditorActivity extends AppCompatActivity implements
     private Button mContact;
     private Button mSelectImage;
     private ImageView mProductImageView;
-    private byte mProductImage[];
     private boolean mProductHasChanged = false;
 
     private View.OnTouchListener mTouchListener = new View.OnTouchListener() {
@@ -146,7 +146,6 @@ public class EditorActivity extends AppCompatActivity implements
                 Bitmap bitmapImage = Media.getBitmap(this.getContentResolver(), selectedImage);
                 ByteArrayOutputStream baoStream = new ByteArrayOutputStream();
                 bitmapImage.compress(Bitmap.CompressFormat.PNG, 100, baoStream);
-                mProductImage = baoStream.toByteArray();
                 mProductImageView.setImageBitmap(bitmapImage);
             } catch (FileNotFoundException e) {
                 e.printStackTrace();
@@ -163,6 +162,11 @@ public class EditorActivity extends AppCompatActivity implements
         String priceString = mPriceEditText.getText().toString().trim();
         String quantityString = mQuantityEditText.getText().toString().trim();
 
+        Bitmap bitmapImage = ((BitmapDrawable) mProductImageView.getDrawable()).getBitmap();
+        ByteArrayOutputStream baoStream = new ByteArrayOutputStream();
+        bitmapImage.compress(Bitmap.CompressFormat.PNG, 100, baoStream);
+        byte productImage[] = baoStream.toByteArray();
+
         if (mCurrentInventoryUri == null &&
                 TextUtils.isEmpty(nameString) || TextUtils.isEmpty(priceString) ||
                 TextUtils.isEmpty(quantityString)) {
@@ -175,7 +179,7 @@ public class EditorActivity extends AppCompatActivity implements
         values.put(InventoryEntry.COLUMN_PRODUCT_NAME, nameString);
         values.put(InventoryEntry.COLUMN_PRODUCT_PRICE, priceString);
         values.put(InventoryEntry.COLUMN_PRODUCT_QUANTITY, quantityString);
-        values.put(InventoryEntry.COLUMN_PRODUCT_IMAGE, mProductImage);
+        values.put(InventoryEntry.COLUMN_PRODUCT_IMAGE, productImage);
 
         if (mCurrentInventoryUri == null) {
             Uri newUri = getContentResolver().insert(InventoryEntry.CONTENT_URI, values);
